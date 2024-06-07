@@ -1,67 +1,36 @@
-from hyperliquid.info import Info
 from hyperliquid.utils import constants
-from hyperliquid.exchange import Exchange
-from eth_account.signers.local import LocalAccount
-from dotenv import load_dotenv
-import os
-import eth_account
-# import json
+from utils import setup
+from spot import spot_cancel, spot_order, spot_order_query, spot_positions
+from futures import futures_cancel, futures_order, futures_order_query, futures_positions
+from api import post_candle_snapshot
 
+#while True:
+#high = bid
+#low = ask
 
-
+#if curr_bid_amount() < curr_ask_amount():
+#   submit bid order
+#if curr_ask_amount() < curr_bid_amount():
+#   submit ask order
+#if inv() > x:
+# bid lower
+#if inv() < x:
+# ask higher
 
 
 def main():
+    # url = constants.TESTNET_API_URL
+    # coin = "PURR/USDC"
+    # account, address, info, exchange = setup('futures', url)
 
-    load_dotenv()
-    priv_key = os.getenv('Testnet_private_key')
-    account: LocalAccount = eth_account.Account.from_key(priv_key)
-    address = os.getenv('Testnet_address')
+    # order_id = futures_order(exchange)
+    # futures_cancel(order_id, exchange)
 
-    if address == "":
-        address = account.address
-        print("Running with account address:", address)
-    if address != account.address:
-        print("Running with agent address:", account.address)
+    # order_id = spot_order(exchange, coin)
+    # spot_cancel(order_id, exchange, coin)
 
+    response = post_candle_snapshot("PURR/USDC","1m", 1717798210000, 1717798510000)
+    last_min = response[len(response)-1]
+    print(last_min)
 
-    # Get the user state and print out position information
-    info = Info(constants.TESTNET_API_URL, skip_ws=True)
-    user_state = info.user_state('needs to be main address')
-    print("User Info: ", user_state)
-
-
-    exchange = Exchange(account, constants.TESTNET_API_URL, account_address=address)
-    
-
-    positions = []
-    for position in user_state["assetPositions"]:
-        positions.append(position["position"])
-    if len(positions) > 0:
-        print("positions:")
-        for position in positions:
-            print(json.dumps(position, indent=2))
-    else:
-        print("no open positions")
-
-    # Place an order that should rest by setting the price very low
-    order_result = exchange.order("ETH", True, 0.05, 1100, {"limit": {"tif": "Gtc"}})
-    print(order_result)
-
-    # Query the order status by oid
-    if order_result["status"] == "ok":
-        status = order_result["response"]["data"]["statuses"][0]
-        if "resting" in status:
-            order_status = info.query_order_by_oid("0x2f6944608b311072f5ecb0f56e2b3d4cc74c5191", status["resting"]["oid"])
-            print("Order status by oid:", order_status)
-
-    # Cancel the order
-    if order_result["status"] == "ok":
-        status = order_result["response"]["data"]["statuses"][0]
-        if "resting" in status:
-            cancel_result = exchange.cancel("ETH", status["resting"]["oid"])
-            print(cancel_result)
-
-
-if __name__ == "__main__":
-    main()
+main()
