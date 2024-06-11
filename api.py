@@ -17,3 +17,5 @@ def post_candle_snapshot(coin, interval, start_time, end_time):
 
     response = requests.post(url, headers=headers, data=json.dumps(body))
     return response.json()
+
+

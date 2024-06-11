@@ -5,12 +5,14 @@ from dotenv import load_dotenv
 import os
 import eth_account
 
+
+
 def setup(market, url):
     load_dotenv()
     priv_key = os.getenv('api_priv_key')
     account: LocalAccount = eth_account.Account.from_key(priv_key)
     address = os.getenv('wallet_address')
-    info = Info(url, skip_ws=True)
+    info = Info(url, skip_ws=False)
     exchange = Exchange(account, url, account_address=account.address)
 
 
