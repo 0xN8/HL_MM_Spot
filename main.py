@@ -11,7 +11,6 @@ def main():
     # ws_run(url)
     account, address, info, exchange = setup('spot', url)
     maker(coin, address, info, exchange)
-
 while True:
     main()
     time.sleep(60)

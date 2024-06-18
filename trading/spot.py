@@ -25,13 +25,9 @@ def spot_order(exchange, coin, side, amt, price):
     order_result = exchange.order(coin, side, amt, price, {"limit": {"tif": "Gtc"}}) #coin, is_buy, qty, price, options
     print(order_result)
 
-    if order_result["status"] == "ok":
+    if order_result["status"] == "ok": 
         status = order_result["response"]["data"]["statuses"][0]
         print(status)
-        if "resting" in status:
-            order_id = status["resting"]["oid"]
-    
-    return order_id
 
 #Cancel an Order
 def spot_cancel(order_id, exchange, coin):
