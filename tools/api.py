@@ -1,5 +1,5 @@
-import requests, json, time, os
 from tools.config import url, test_url, headers
+import requests, json, time, os
 
 url += "/info"
 minute_ms = 60000
@@ -45,4 +45,14 @@ def post_user_orders(address):
 
     response = requests.post(url, headers=headers, data=json.dumps(body))
     print("User Orders response: ", response)
+    return response.json()
+
+def post_l2_book(coin):
+    body = {
+        "type": "l2Book",
+        "coin": coin
+    }
+
+    response = requests.post(url, headers=headers, data=json.dumps(body))
+    print("L2 Book response: ", response)
     return response.json()

@@ -12,16 +12,13 @@ def setup(market, url):
     priv_key = os.getenv('api_priv_key')
     account: LocalAccount = eth_account.Account.from_key(priv_key)
     address = os.getenv('wallet_address')
-    info = Info(url, skip_ws= True)
+    info = Info(url, skip_ws= False)
     exchange = Exchange(account, url, account_address=account.address)
 
 
     # Set address to the api address if no wallet is provided
     if address == "":
         address = account.address
-        print("Running with account address:", address)
-    if address != account.address:
-        print("Running with agent address:", account.address)
 
     # Get the account info based on market type
     if market == 'spot':
@@ -75,3 +72,12 @@ def ws_manager_run(url, subscription):
     ws_manager = WebsocketManager(url)
     ws_manager.start()
     ws_manager.subscribe(subscription, manager_on_msg)
+
+
+
+def elapsed_time():
+    while True:
+        start_time = time.time() * 1000
+        elapsed_time = time.time()*1000 - start_time
+
+        print(f"Elapsed time: {elapsed_time} ms")
