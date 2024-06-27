@@ -7,7 +7,7 @@ import os, eth_account, json, time, threading, websocket
 
 
 
-def setup(market, url):
+def setup(url):
     load_dotenv()
     priv_key = os.getenv('api_priv_key')
     account: LocalAccount = eth_account.Account.from_key(priv_key)
@@ -19,16 +19,6 @@ def setup(market, url):
     # Set address to the api address if no wallet is provided
     if address == "":
         address = account.address
-
-    # Get the account info based on market type
-    if market == 'spot':
-        user_state = info.spot_user_state(address)
-    elif market == 'futures':
-        user_state = info.user_state(address)
-    else:
-        print("Please provide a valid market type")
-        return
-    print("User Info: ", user_state)
 
     return account, address, info, exchange
 

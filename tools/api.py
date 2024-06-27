@@ -1,5 +1,5 @@
 from tools.config import url, test_url, headers
-import requests, json, time, os
+import requests, json, time
 
 url += "/info"
 minute_ms = 60000
@@ -27,7 +27,7 @@ def post_candle_snapshot(coin, interval_str, interval_int):
     print("Candle Snapshot response: ", response)
     return response.json()
 
-def post_user_tokens(address):
+def post_user_spot_tokens(address):
     body = {
         "type": "spotClearinghouseState",
         "user": address

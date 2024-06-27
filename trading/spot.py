@@ -51,10 +51,10 @@ def modify_multi_orders(exchange, info, address,  coin, stable_sz, coin_sz, bid,
     for order in spot_open_orders(info, address):
         if order['coin'] == coin:
             if order['side'] == 'B':
-                modify_req.append({"oid": order["oid"], "order": {"coin": coin, "is_buy": True, "sz": math.floor(stable_sz[bid_i]), "limit_px": round(bid[bid_i],5), "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False}})
+                modify_req.append({"oid": order["oid"], "order": {"coin": coin, "is_buy": True, "sz": stable_sz[bid_i], "limit_px": bid[bid_i], "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False}})
                 bid_i += 1
             elif order['side'] == 'A':
-                modify_req.append({"oid": order["oid"], "order": {"coin": coin, "is_buy": False, "sz": math.floor(coin_sz[ask_i]), "limit_px": round(ask[ask_i],5), "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False}})
+                modify_req.append({"oid": order["oid"], "order": {"coin": coin, "is_buy": False, "sz": coin_sz[ask_i], "limit_px": ask[ask_i], "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False}})
                 ask_i += 1
     
 
@@ -69,11 +69,11 @@ def modify_multi_orders(exchange, info, address,  coin, stable_sz, coin_sz, bid,
     #if we have more _sz than we have sides to modify, we need to place more orders on that side    
     if bid_i < len(stable_sz):
         for i in range(bid_i, len(stable_sz)):
-            orders.append({"coin": coin, "is_buy": True, "sz": math.floor(stable_sz[i]), "limit_px": round(bid[i],5), "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False})
+            orders.append({"coin": coin, "is_buy": True, "sz": stable_sz[i], "limit_px": bid[i], "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False})
 
     if ask_i < len(coin_sz):
         for i in range(ask_i, len(coin_sz)):
-            orders.append({"coin": coin, "is_buy": False, "sz": math.floor(coin_sz[i]), "limit_px": round(ask[i],5), "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False})
+            orders.append({"coin": coin, "is_buy": False, "sz": coin_sz[i], "limit_px": ask[i], "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False})
 
     order_result = exchange.bulk_orders(orders)
 
@@ -102,14 +102,14 @@ def cancel_orders(exchange,info, address, coin):
 
 
 
-def multi_spot_orders(exchange, coin, stable_sz, coin_sz, bid, ask):
+def multi_spot_orders(exchange, coin, stable_sz, coin_sz, bids, asks):
     orders = []
     
     for i in range(len(stable_sz)):
-        orders.append({"coin": coin, "is_buy": True, "sz": math.floor(stable_sz[i]), "limit_px": round(bid[i],5), "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False})
+        orders.append({"coin": coin, "is_buy": True, "sz": stable_sz[i], "limit_px": bids[i], "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False})
     
     for i in range(len(coin_sz)):
-        orders.append({"coin": coin, "is_buy": False, "sz": math.floor(coin_sz[i]), "limit_px": round(ask[i],5), "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False})
+        orders.append({"coin": coin, "is_buy": False, "sz": coin_sz[i], "limit_px": asks[i], "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False})
 
     # Place multiple orders
     order_result = exchange.bulk_orders(orders)

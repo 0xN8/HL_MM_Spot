@@ -1,5 +1,6 @@
 from tools.api import post_l2_book
 import numpy as np
+import os
 
 
 
@@ -28,6 +29,7 @@ def load_spread_history(coin):
 
     # Write the updated array back to the file
     np.save (data_path, spread_data)
+
 
     print("Historical Spread Data: ", np.load(data_path))
 
