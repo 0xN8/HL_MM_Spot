@@ -1,4 +1,4 @@
-from tools.config import url, coin, ws_url, test_url, ws_test_url
+from tools.config import url, coin, ws_url, test_url, ws_test_url, coin_short
 from tools.utils import setup, ws_manager_run, ws_run, elapsed_time
 from data.trades import trade_sub
 from hjb_eq import hjb
@@ -11,7 +11,7 @@ from avg_vol import avg_vol
 
 def main():
     account, address, info, exchange = setup(url)
-    hft(info, exchange, coin, address)
+    hft(info, exchange, coin, address, coin_short)
     # trade_sub(info, coin)
 main()
 
