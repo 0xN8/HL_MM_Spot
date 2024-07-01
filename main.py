@@ -10,7 +10,7 @@ from avg_vol import avg_vol
     
 
 def main():
-    account, address, info, exchange = setup(url)
+    account, address, info, exchange = setup(url, prod=True)
     hft(info, exchange, coin, address, coin_short)
     # trade_sub(info, coin)
 main()
