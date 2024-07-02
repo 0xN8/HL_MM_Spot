@@ -1,6 +1,4 @@
 import numpy as np
-from tools.api import post_candle_snapshot
-import os
 
 def volatility(close_prices):
     close_prices_np = np.array(close_prices)
