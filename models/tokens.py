@@ -4,7 +4,7 @@ class TokenInfo:
         self.tokens = self._get_tokens()
 
     def _get_tokens(self):
-        res = self.info.spot_metadata()
+        res = self.info.spot_meta()
         return {token['name']: token for token in res['tokens']}
 
     def get_token(self, coin_short):

@@ -1,6 +1,6 @@
 from tools.config import url, coin, ws_url, test_url, ws_test_url, coin_short
 from tools.utils import setup, elapsed_time
-from models import TokenInfo
+from models.tokens import TokenInfo
 from data.trades import trade_sub
 from hjb_eq import hjb
 from hft import hft

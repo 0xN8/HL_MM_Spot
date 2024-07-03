@@ -1,4 +1,3 @@
-from decimal import Decimal, ROUND_HALF_UP
 import numpy as np
 
 
@@ -43,14 +42,14 @@ def calc_sz_list(inv, last_mid):
 
 
 def round_sz(sz, tick):
-    subtractor = Decimal(10) ** -tick
+    subtractor = 10 ** -tick
     return [round(s, tick)-subtractor for s in sz]
 
 
-def volatility(close_prices):
-    close_prices_np = np.array(close_prices)
+# def volatility(close_prices):
+#     close_prices_np = np.array(close_prices)
 
-    ratios = close_prices_np[1:] / close_prices_np[:-1]
-    log_returns = np.log(ratios)
+#     ratios = close_prices_np[1:] / close_prices_np[:-1]
+#     log_returns = np.log(ratios)
 
-    return np.std(log_returns)
+#     return np.std(log_returns)
