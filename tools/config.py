@@ -5,4 +5,3 @@ ws_url = 'wss://api.hyperliquid.xyz/ws'
 coin = "@1"
 coin_short = "HFUN"
 headers = {"Content-Type": "application/json"}
-

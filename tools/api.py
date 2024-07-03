@@ -6,7 +6,6 @@ minute_ms = 60000
 candle_spread = 500
 
 
-
 def post_candle_snapshot(coin, interval_str, interval_int):
 
     time_diff = minute_ms * candle_spread * interval_int

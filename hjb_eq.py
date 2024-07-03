@@ -1,5 +1,5 @@
 from tools.api import post_candle_snapshot, post_user_spot_tokens, post_user_orders
-from tools.stats import volatility
+from tools.calc import volatility
 import numpy as np
 from trading.spot import spot_order, spot_cancel
 from termcolor import colored, cprint

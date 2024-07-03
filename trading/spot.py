@@ -16,6 +16,7 @@ def spot_order_query(order_id, info, address):
     order_status = info.query_order_by_oid(address, order_id)
     print("Order status by oid:", order_status)
 
+
 def spot_open_orders(info, address):
     # Query the open orders
     open_orders = info.open_orders(address)
@@ -33,6 +34,7 @@ def spot_order(exchange, coin, side, amt, price):
     if order_result["status"] == "ok": 
         status = order_result["response"]["data"]["statuses"][0]
         print(status)
+
 
 #Cancel an Order
 def spot_cancel(order_id, exchange, coin):
