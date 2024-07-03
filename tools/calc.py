@@ -12,9 +12,9 @@ def calc_px(last_maker, buy):
     post_decimal = len(str(last_maker).split(".")[1]) if '.' in str(last_maker) else 0
     increment = 1/10**post_decimal
     if buy:
-        return [last_maker, last_maker - increment, last_maker - 2*increment]
+        return [last_maker + increment, last_maker, last_maker - increment]
     else:
-        return [last_maker, last_maker + increment, last_maker + 2*increment]
+        return [last_maker - increment, last_maker, last_maker + increment]
     
 
 def calc_sz_list(inv, last_mid):
