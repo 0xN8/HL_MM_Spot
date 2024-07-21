@@ -1,18 +1,18 @@
-from tools.config import url, coin, ws_url, test_url, ws_test_url, coin_short
-from tools.utils import setup, elapsed_time
-from models.tokens import TokenInfo
-from data.trades import trade_sub
-from hft import hft
+from tools.config import url, coin, wsUrl, testUrl, wsTestUrl, coinShort
+from models import tokens, defaults
+from data.trades import tradeSub
+from hft import hft_thread
 
 
 
     
 
 def main():
-    account, address, info, exchange = setup(url, prod=True)
-    token_info = TokenInfo(info)
-    token = token_info.get_token(coin_short)
-    hft(info, exchange, address, coin, token)
-    # trade_sub(info, coin)
+    hyperClass = defaults.HyperMarketMakerDefaults(url)
+    tokensInfo = tokens.TokenInfo(hyperClass.info)
+    token = tokensInfo.getToken(coinShort)
+    hft_thread(hyperClass, coin, token)
+
+    # tradeSub(hyperClass, coin)
 main()
 

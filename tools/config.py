@@ -1,7 +1,6 @@
-test_url = "https://api.hyperliquid-testnet.xyz"
-ws_test_url = 'wss://api.hyperliquid-testnet.xyz/ws'
+testUrl = "https://api.hyperliquid-testnet.xyz"
+wsTestUrl = 'wss://api.hyperliquid-testnet.xyz/ws'
 url = "https://api.hyperliquid.xyz"
-ws_url = 'wss://api.hyperliquid.xyz/ws'
+wsUrl = 'wss://api.hyperliquid.xyz/ws'
 coin = "@1"
-coin_short = "HFUN"
-headers = {"Content-Type": "application/json"}
+coinShort = "HFUN"

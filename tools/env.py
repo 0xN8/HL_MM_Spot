@@ -1,7 +1,7 @@
 import boto3
     
 
-def get_env():
+def getEnv():
     session = boto3.session.Session()
     client = session.client(
         service_name='ssm',
@@ -12,7 +12,9 @@ def get_env():
         Names=[
             '/HL-MM-Spot/dev/api',
             '/HL-MM-Spot/prod/api',
-            '/HyperLiquid/prod/account-address'
+            '/HyperLiquid/prod/account-address',
+            '/HyperLiquid/prod/mm_address',
+            '/HyperLiquid/prod/neu-address'
         ],
         WithDecryption=True
     )

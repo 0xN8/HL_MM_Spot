@@ -1,40 +1,44 @@
 from hyperliquid.info import Info
 from hyperliquid.exchange import Exchange
 from eth_account.signers.local import LocalAccount
-from tools.env import get_env
+from tools.env import getEnv
 import eth_account, time
 
 
-def parse_parameters(parameters, prod):
+def parseParameters(parameters, prod):
     for parameter in parameters:
         if parameter['Name'] == '/HL-MM-Spot/dev/api' and not prod:
-            api_key = parameter['Value']
+            apiKey = parameter['Value']
         elif parameter['Name'] == '/HL-MM-Spot/prod/api' and prod:
-            api_key = parameter['Value']
+            apiKey = parameter['Value']
         elif parameter['Name'] == '/HyperLiquid/prod/account-address':
-            address = parameter['Value']
-    return api_key, address
+            accAddress = parameter['Value']
+        elif parameter['Name'] == '/HyperLiquid/prod/mm_address':
+            makerAddress = parameter['Value']
+        elif parameter['Name'] == '/HyperLiquid/prod/neu-address':
+            hedgeAddress = parameter['Value']
+    return apiKey, accAddress, makerAddress, hedgeAddress
 
 
 def setup(url, prod):
-    parameters = get_env()
-    api_key, address = parse_parameters(parameters, prod)
-    account: LocalAccount = eth_account.Account.from_key(api_key)
+    parameters = getEnv()
+    apiKey, accAddress, makerAddress, hedgeAddress = parseParameters(parameters, prod)
+    account: LocalAccount = eth_account.Account.from_key(apiKey)
     info = Info(url, skip_ws= False)
     exchange = Exchange(account, url, account_address=account.address)
 
 
     # Set address to the api address if no wallet is provided
-    if address == "":
+    if accAddress == "":
         address = account.address
 
-    return account, address, info, exchange
+    return account, accAddress, makerAddress, hedgeAddress, info, exchange
 
 
 
-def elapsed_time():
+def elapsedTime():
     while True:
-        start_time = time.time() * 1000
-        elapsed_time = time.time()*1000 - start_time
+        startTime = time.time() * 1000
+        elapsedTime = time.time()*1000 - startTime
 
-        print(f"Elapsed time: {elapsed_time} ms")
+        print(f"Elapsed time: {elapsedTime} ms")

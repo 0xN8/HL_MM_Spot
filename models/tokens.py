@@ -1,13 +1,13 @@
 class TokenInfo:
     def __init__(self, info):
         self.info = info
-        self.tokens = self._get_tokens()
+        self.tokens = self.getTokens()
 
-    def _get_tokens(self):
+    def getTokens(self):
         res = self.info.spot_meta()
         return {token['name']: token for token in res['tokens']}
 
-    def get_token(self, coin_short):
-        if coin_short not in self.tokens:
-            self.tokens = self._get_tokens()
-        return self.tokens.get(coin_short)
+    def getToken(self, coinShort):
+        if coinShort not in self.tokens:
+            self.tokens = self.getTokens()
+        return self.tokens.get(coinShort)
