@@ -2,9 +2,10 @@ from trading.spot import multiSpotOrders, spotPositions, cancelOrders
 from compute.stats import roundSigFigs
 from compute.spread import calcQuote, calcSizeList, roundSize, skew, basis, calcMid, calcPrice
 from models.deques import orderInit, fillInit
-from tools.api import subFills, subOrders, subl2Book, subFundings
+from tools.api import subFills, subOrders, subl2Book, subFundings, subCandles
+from strategies.features.trend import trend, getTrendFlag
 from termcolor import cprint
-import threading, collections, time, json
+import threading, collections, json
 from decimal import Decimal, ROUND_HALF_UP
 
 
@@ -168,43 +169,44 @@ def fundingSubCallback(ws, data):
 
 
 def hft():
-    cprint("HFT Taking Trade", 'light_cyan', 'on_dark_grey')
-    global globalHyperClass, globalCoin, globalToken
-    
-    bids = calcPrice(newBidDeque.pop(), True)
-    asks = calcPrice(newAskDeque.pop(), False)
+    while getTrendFlag():
+        cprint("HFT Taking Trade", 'light_cyan', 'on_dark_grey')
+        global globalHyperClass, globalCoin, globalToken
+        
+        bids = calcPrice(newBidDeque.pop(), True)
+        asks = calcPrice(newAskDeque.pop(), False)
 
-    cprint(f"My Bids:{bids}", 'light_green', 'on_blue')
-    cprint(f"My Asks: {asks}", 'light_green', 'on_blue')
-    positions = spotPositions(globalHyperClass)
+        cprint(f"My Bids:{bids}", 'light_green', 'on_blue')
+        cprint(f"My Asks: {asks}", 'light_green', 'on_blue')
+        positions = spotPositions(globalHyperClass)
 
-    coins = 0
-    stables = 0
-    szTick = globalToken['szDecimals']
-
-
-    for position in positions:
-        if position['coin'] == 'USDC':
-            stables = Decimal(position['total'])
-        elif position['coin'] == globalToken['name']:
-            coins = Decimal(position['total'])
-
-    cprint(f"Coins: {coins}", "light_cyan", "on_dark_grey")
-    cprint(f"Stables: {stables}", "light_cyan", "on_dark_grey")
-    #measured in dollars
-    stableSz = roundSize(calcSizeList(stables / newMidDeque[-1], newMidDeque[-1]), szTick)
-    coinSz = roundSize(calcSizeList(coins, newMidDeque[-1]), szTick)
-
-    cprint(f"Stables Size List: {stableSz}", 'light_green', 'on_blue')
-    cprint(f"Coins Size List: {coinSz}", 'light_green', 'on_blue')
-
-    cancelOrders(globalHyperClass, globalCoin)
-    multiSpotOrders(globalHyperClass, globalCoin, stableSz, coinSz, bids, asks)
+        coins = 0
+        stables = 0
+        szTick = globalToken['szDecimals']
 
 
+        for position in positions:
+            if position['coin'] == 'USDC':
+                stables = Decimal(position['total'])
+            elif position['coin'] == globalToken['name']:
+                coins = Decimal(position['total'])
+
+        cprint(f"Coins: {coins}", "light_cyan", "on_dark_grey")
+        cprint(f"Stables: {stables}", "light_cyan", "on_dark_grey")
+        #measured in dollars
+        stableSz = roundSize(calcSizeList(stables / newMidDeque[-1], newMidDeque[-1]), szTick)
+        coinSz = roundSize(calcSizeList(coins, newMidDeque[-1]), szTick)
+
+        cprint(f"Stables Size List: {stableSz}", 'light_green', 'on_blue')
+        cprint(f"Coins Size List: {coinSz}", 'light_green', 'on_blue')
+
+        cancelOrders(globalHyperClass, globalCoin)
+        multiSpotOrders(globalHyperClass, globalCoin, stableSz, coinSz, bids, asks)
 
 
-def hft_thread(hyperClass, coin, token, wsUrl):
+
+
+def hft_thread(hyperClass, coin, token, hedge, wsUrl):
     global globalHyperClass, globalCoin, globalToken
     globalHyperClass = hyperClass
     globalCoin = coin
@@ -215,6 +217,7 @@ def hft_thread(hyperClass, coin, token, wsUrl):
     fundingsThread = threading.Thread(target = subFundings, args = ({"type": "userFundings","user": hyperClass.hedgeAddress}, fundingSubCallback, wsUrl))
     # tradeThread = threading.Thread(target = hyperClass.info.subscribe, args = ({'type': 'trade', 'coin': coin}, tradeSubCallback, wsUrl))
 
+    threads = [l2BookThread, fillsThread, ordersThread, fundingsThread]
     cprint("HFT Thread Started", 'light_cyan', 'on_dark_grey')
 
     l2BookThread.start()
@@ -222,6 +225,8 @@ def hft_thread(hyperClass, coin, token, wsUrl):
     ordersThread.start()
     fundingsThread.start()
     # tradeThread.start()
+
+    trend(subCandles, hedge, wsUrl, threads)
 
 
     print("L2 Book Thread status: ", l2BookThread.is_alive())

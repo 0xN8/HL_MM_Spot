@@ -4,4 +4,5 @@ url = "https://api.hyperliquid.xyz"
 wsUrl = 'wss://api.hyperliquid.xyz/ws'
 coin = "PURR/USDC"
 coinShort = "PURR"
+hedge = "BTC"
 pxTick = 5

@@ -87,19 +87,14 @@ def subFundings (args, callback, url):
 
 
 
+def subCandles(args, callback, url):
+    msg = {
+        "method": "subscribe",
+        "subscription": args
+    }
+
+    ws = websocket.WebSocketApp(url, on_message = callback, on_error = on_error, on_close = on_close)
+    ws.on_open = lambda ws: on_open(ws, msg)
+    ws.run_forever()
 
 
-minuteMs = 60000
-candleSpread = 500
-
-
-
-
-def postCandleSnapshot(hyperClass, coin, intervalStr, intervalInt):
-
-    timeDiff = minuteMs * candleSpread * intervalInt
-    endTime = int(time.time() * 1000)
-    startTime = endTime - timeDiff
-
-    response = hyperClass.info.candles_snapshot(coin, intervalStr, startTime, endTime)
-    return response.json()
