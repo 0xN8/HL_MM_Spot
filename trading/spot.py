@@ -1,45 +1,23 @@
 from termcolor import cprint
+from decimal import Decimal
+import re
 
 
 #Print out spot account balances info if any
 def spotPositions(hyperClass):
     spotUserState = hyperClass.info.spot_user_state(hyperClass.makerAddress)
 
-    print("spot balances: ", spotUserState['balances'])
-
     return spotUserState['balances']
 
-#Search for order info by order_id
-def spotOrderQuery(hyperClass, orderId):
-    # Query the order status by order-id
-    orderStatus = hyperClass.info.query_order_by_oid(hyperClass.makerAddress, orderId)
-    print("Order status by oid:", orderStatus)
 
 
 def spotOpenOrders(hyperClass):
     # Query the open orders
     openOrders = hyperClass.info.open_orders(hyperClass.makerAddress)
-    print("Open orders:", openOrders)
 
     return openOrders
 
 
-#Place a spot order, returns order id
-def spotOrder(hyperClass, coin, side, amt, price):
-    # Place an order
-    orderResult = hyperClass.exchange.order(coin, side, amt, price, {"limit": {"tif": "Gtc"}}) #coin, is_buy, qty, price, orderType
-    print(orderResult)
-
-    if orderResult["status"] == "ok": 
-        status = orderResult["response"]["data"]["statuses"][0]
-        print(status)
-
-
-#Cancel an Order
-def spotCancel(hyperClass, coin, orderId):
-    # Cancel an order
-    cancelResult = hyperClass.exchange.cancel(coin, orderId)
-    print(cancelResult)
 
 
 def modifyMultiOrders(hyperClass, coin, stableSz, coinSz, bid, ask):
@@ -107,17 +85,33 @@ def multiSpotOrders(hyperClass, coin, stableSz, coinSz, bids, asks):
     orders = []
     
     for i in range(len(stableSz)):
-        orders.append({"coin": coin, "is_buy": True, "sz": stableSz[i], "limit_px": bids[i], "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False})
+        orders.append({"coin": coin, "is_buy": True, "sz": float(stableSz[i]), "limit_px": float(bids[i]), "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False})
     
-    for i in range(len(coin_sz)):
-        orders.append({"coin": coin, "is_buy": False, "sz": coinSz[i], "limit_px": asks[i], "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False})
+    for i in range(len(coinSz)):
+        orders.append({"coin": coin, "is_buy": False, "sz": float(coinSz[i]), "limit_px": float(asks[i]), "order_type": {"limit": {"tif": "Alo"}}, "reduce_only": False})
 
+    cprint(f"Placing Orders: {orders}", 'light_yellow', 'on_magenta')
     # Place multiple orders
     orderResult = hyperClass.exchange.bulk_orders(orders)
+    print(orderResult)
+    if orderResult["status"] == "ok":
+        statuses = orderResult["response"]["data"]["statuses"]
+        # for status in statuses:
+        #     if "error" in status:
+        #         errorMsg = status["error"]
+        #         if errorMsg.startswith("Post only order would have immediately matched"):
+        #             match = re.search(r'was\s(.*)\.', errorMsg)
+        #             if match:
+        #                 bbo = Decimal(match.group(1))
+        #                 cprint(f"Post only order would have matched at {bbo}, resubmitting order", 'light_cyan', 'on_dark_grey')
 
-    if orderResult["status"] == "ok": 
-        status = orderResult["response"]["data"]["statuses"]
-        cprint(f"Order Status: {status}",'light_yellow', 'on_magenta')
+        # get order id and find what side that order got rejected was on
+        # can use index error was to find which order it is
+                        
+
+        # if we get a post only order would have immediately matched we can cancel all orders and let the subscriptions retry
+
+        cprint(f"Order Status: {statuses}",'light_yellow', 'on_magenta')
     else:
         cprint("Order not submitted: {order_result}", 'white', 'on_red')
     

@@ -1,6 +1,7 @@
 
 import numpy as np
 import os
+from termcolor import cprint
 
 
 
@@ -27,9 +28,9 @@ def callback(data):
 
     np.save('data/trades.npy', tradesData)
 
-    print("Historical Trade Data: ", np.load('data/trades.npy'))
+    cprint(f"Historical Trade Data: {np.load('data/trades.npy')}", 'light_cyan', 'on_dark_grey')
     avgTime = avgTimeTradeDelta(tradesData)
-    print("Average Time Between Trades: ", avgTime)
+    cprint(f"Average Time Between Trades: {avgTime}", 'light_green', 'on_blue')
 
 
 def tradeSub(hyperClass, coin):

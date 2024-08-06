@@ -52,9 +52,9 @@ def hjb(coin, address, info, exchange):
 
     
     
-    print(colored("Bid-Ask Spread 1: ", 'light_cyan'), colored(bid_one, 'cyan'), colored(ask_one, 'cyan'))
-    print(colored("Bid-Ask Spread 2: ", 'light_cyan'), colored(bid_two, 'cyan'), colored(ask_two, 'cyan'))
-    print(colored("Bid-Ask Spread 3: ", 'light_cyan'), colored(bid_three, 'cyan'), colored(ask_three, 'cyan'))
+    print(colored("Bid-Ask Spread 1: ", 'light_cyan'), colored(bid_one, 'light_cyan'), colored(ask_one, 'light_cyan'))
+    print(colored("Bid-Ask Spread 2: ", 'light_cyan'), colored(bid_two, 'light_cyan'), colored(ask_two, 'light_cyan'))
+    print(colored("Bid-Ask Spread 3: ", 'light_cyan'), colored(bid_three, 'light_cyan'), colored(ask_three, 'light_cyan'))
 
     print(colored("Mid-price: ",'light_blue'), colored(mid_price, 'light_blue'))
           

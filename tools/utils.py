@@ -25,7 +25,7 @@ def setup(url, prod):
     apiKey, accAddress, makerAddress, hedgeAddress = parseParameters(parameters, prod)
     account: LocalAccount = eth_account.Account.from_key(apiKey)
     info = Info(url, skip_ws= False)
-    exchange = Exchange(account, url, account_address=account.address)
+    exchange = Exchange(account, url, vault_address=makerAddress)
 
 
     # Set address to the api address if no wallet is provided
@@ -41,4 +41,4 @@ def elapsedTime():
         startTime = time.time() * 1000
         elapsedTime = time.time()*1000 - startTime
 
-        print(f"Elapsed time: {elapsedTime} ms")
+        cprint(f"Elapsed time: {elapsedTime} ms", 'light_cyan', 'on_dark_grey')

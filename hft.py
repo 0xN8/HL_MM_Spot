@@ -1,8 +1,11 @@
 from trading.spot import multiSpotOrders, spotPositions, cancelOrders
-from compute.calc import roundSigFigs
+from compute.stats import roundSigFigs
 from compute.spread import calcQuote, calcSizeList, roundSize, skew, basis, calcMid, calcPrice
+from models.deques import orderInit, fillInit
+from tools.api import subFills, subOrders, subl2Book, subFundings
 from termcolor import cprint
-import threading, collections, time
+import threading, collections, time, json
+from decimal import Decimal, ROUND_HALF_UP
 
 
 #This is current/historic book data deque's
@@ -13,12 +16,14 @@ spreadDeque = collections.deque(maxlen=200)
 
 #FillsDeques keep track of positions
 #OrderDeques keep track of pending orders
-fillsAskDeque = collections.deque(maxlen=200)
-fillsBidDeque = collections.deque(maxlen=200)
-orderAskDeque = collections.deque(maxlen=200)
-orderBidDeque = collections.deque(maxlen=200)
+fillsAskDeque = collections.deque(fillInit, maxlen=200)
+fillsBidDeque = collections.deque(fillInit, maxlen=200)
+orderAskDeque = collections.deque(orderInit,maxlen=200)
+orderBidDeque = collections.deque(orderInit,maxlen=200)
+
+
 fundingsDeque = collections.deque(maxlen=200)
-basisDeque = collections.deque(maxlen=200)
+basisDeque = collections.deque([0], maxlen=200)
 
 #These are my deque's
 newAskDeque = collections.deque(maxlen=1)
@@ -30,113 +35,147 @@ newSpreadDeque = collections.deque(maxlen=1)
 #What's relevant is if the mid is the mid is different we need to recalc fair value and requote
 #if the spread is different we need to requote around our old fair value
 #hence if bid or ask is different we have either a new mid or a new spread
-def l2BookSubCallback(data):
-    bid = float(data['data']['levels'][0][0]['px'])
-    ask = float(data['data']['levels'][1][0]['px'])
+def l2BookSubCallback(ws, data):
+    # cprint(f"L2Book Callback {data}", 'light_cyan', 'on_dark_grey')
+    data = json.loads(data)
+    if data['channel'] == 'subscriptionResponse':
+        return
+    
+    bid = Decimal(data['data']['levels'][0][0]['px'])
+    ask = Decimal(data['data']['levels'][1][0]['px'])
     spread = ask - bid
-    mid = spread/2 + bid
+    mid = roundSigFigs(Decimal(spread/2) + bid, 5)
     makerDesProfit = 0
 
 
-
-    if bid == bidDeque[-1] and ask == askDeque[-1]:
-        return
+    if bidDeque and askDeque:
+        if bid == bidDeque[-1] and ask == askDeque[-1]:
+            print("No New Best Bid and Ask")
+            return
     
+    if not newMidDeque:
+        newMidDeque.append(mid)
+
     bidDeque.append(bid)
     askDeque.append(ask)
-    midDeque.append(roundSigFigs(mid,5))
+    midDeque.append(mid)
     spreadDeque.append(spread)
+    cprint(f'Market Mid & Spread: {mid}, {spread}', 'light_cyan', 'on_dark_grey')
+
+
     #this new spread takes the basis % and if basis is positive I am getting paid to hedge
     #(decrease spread --> more fills)
     #makerDesProfit is a % that I determine to increase or decrease spread width
     newSpreadDeque.append(spread*basisDeque[-1]*-1 + spread + makerDesProfit*spread)
 
-    if midDeque[-1] != midDeque[-2]:
+    if len(midDeque) > 1 and midDeque[-1] != midDeque[-2]:
         calcMid(midDeque, newMidDeque)
-        calcQuote(newMidDeque, avgHalfSpreadPct = (newSpreadDeque[-1]/2)/midDeque[-1])
+        calcQuote(newBidDeque, newAskDeque, newMidDeque, avgHalfSpreadPct = (newSpreadDeque[-1]/2)/midDeque[-1])
+        print("New Mid Calculated, calling HFT")
         hft()
-
-    elif spreadDeque[-1] != spreadDeque[-2]:
-        calcQuote(newMidDeque, avgHalfSpreadPct = (newSpreadDeque[-1]/2)/midDeque[-1])
+    
+    elif len(spreadDeque) > 1 and spreadDeque[-1] != spreadDeque[-2]:
+        calcQuote(newBidDeque, newAskDeque, newMidDeque, avgHalfSpreadPct = (newSpreadDeque[-1]/2)/midDeque[-1])
+        print("New Quote Calculated, calling HFT")
         hft()
         
 
 #change in position size
-def fillsSubCallback(data):
-    fills = data.data.fills
-    if not data.data.isSnapshot:
+def fillsSubCallback(ws, data):
+    # cprint(f"Fills Callback {data}", 'light_cyan', 'on_dark_grey')
+    data = json.loads(data)
+    if data['channel'] == 'subscriptionResponse':
+        return
+    
+    fills = data['data']['fills']
+    if data['data'].get('isSnapshot') == None:
         for fill in fills:
-            if fill.oid in orderAskDeque:
-                orderAskDeque.remove(fills.oid)
-            elif fill.oid in orderBidDeque:
-                orderBidDeque.remove(fills.oid)
-            if fill.side == 'A':
+            if fill['oid'] in orderAskDeque:
+                orderAskDeque.remove(fills['oid'])
+            elif fill['oid'] in orderBidDeque:
+                orderBidDeque.remove(fills['oid'])
+            if fill['side'] == 'A':
                 fillsAskDeque.append(fill)
-                cprint(f"AsksFilled: {fillsAskDeque}")
-            elif fill.side == 'B':
+                cprint(f"New Asks Filled: {fill}", 'light_yellow', 'on_magenta')
+            elif fill['side'] == 'B':
                 fillsBidDeque.append(fill)
-                cprint(f"BidsFilled: {fillsBidDeque}")
+                cprint(f"New Bids Filled: {fill}", 'light_yellow', 'on_magenta')
 
         skew(fills, orderBidDeque, orderAskDeque, wtAvgHalfSpreadPct = (spreadDeque[-1]/2)/midDeque[-1])
         calcMid(midDeque, newMidDeque)
-        calcQuote(newMidDeque, avgHalfSpreadPct = (newSpreadDeque[-1]/2)/midDeque[-1])
+        calcQuote(newBidDeque, newAskDeque, newMidDeque, avgHalfSpreadPct = (newSpreadDeque[-1]/2)/midDeque[-1])
         hft()
 
 
 #Just tracking orders for quote total
 #But a change in order size will not trigger any new calculations
 #Only fills, new mids, or new spreads will trigger new calculations
-def ordersSubCallback(data):
-    orderData = data.data[0]
-    order = orderData.order
+def ordersSubCallback(ws, data):
+    # cprint(f"Orders Callback {data}", 'light_cyan', 'on_dark_grey')
+    data = json.loads(data)
+    if data['channel'] == 'subscriptionResponse':
+        return
 
-    if orderData.status == 'open':
-        if order.side == 'A':
-            if order.oid not in orderAskDeque:
+    orderData = data['data'][0]
+    order = orderData['order']
+
+    if orderData['status'] == 'open':
+        if order['side'] == 'A':
+            if order['oid'] not in orderAskDeque:
                 orderAskDeque.append(order)
-                cprint(f"Asks Orders: {orderAskDeque}")
-        if order.side == 'B':
-            if order.oid not in orderBidDeque:
+                cprint(f"Asks Order Added: {order}", 'light_yellow', 'on_magenta')
+        if order['side'] == 'B':
+            if order['oid'] not in orderBidDeque:
                 orderBidDeque.append(order)
-                cprint(f"Bids Orders: {orderBidDeque}")
+                cprint(f"Bids Order Added: {order}", 'light_yellow', 'on_magenta')
 
-    elif orderData.status == 'canceled':
-        if order.oid in orderAskDeque:
-            orderAskDeque.remove(order.oid)
-        elif order.oid in orderBidDeque:
-            orderBidDeque.remove(order.oid)
-    elif orderData.status == 'filled':
-        if order.oid in orderAskDeque:
-            orderAskDeque.remove(order.oid)
-        elif order.oid in orderBidDeque:
-            orderBidDeque.remove(order.oid)
-    elif orderData.status == 'rejected':
-        if order.oid in orderAskDeque:
-            orderAskDeque.remove(order.oid)
-        elif order.oid in orderBidDeque:
-            orderBidDeque.remove(order.oid)
+    elif orderData['status'] == 'canceled':
+        if order['oid'] in orderAskDeque:
+            orderAskDeque.remove(order['oid'])
+        elif order['oid'] in orderBidDeque:
+            orderBidDeque.remove(order['oid'])
+    elif orderData['status'] == 'filled':
+        if order['oid'] in orderAskDeque:
+            orderAskDeque.remove(order['oid'])
+        elif order['oid'] in orderBidDeque:
+            orderBidDeque.remove(order['oid'])
+    elif orderData['status'] == 'rejected':
+        if order['oid'] in orderAskDeque:
+            orderAskDeque.remove(order['oid'])
+        elif order['oid'] in orderBidDeque:
+            orderBidDeque.remove(order['oid'])
 
 
 
-def fundingSubCallback(data):
-    fundings = data.data.fundings
-    if data.data.isSnapshot:
-        for funding in fundings:
-            fundingsDeque.append(funding)
-    else:
-        fundingsDeque.append(fundings[-1])
+def fundingSubCallback(ws, data):
+    # cprint(f"Funding Callback {data}", 'light_cyan', 'on_dark_grey')
+    data = json.loads(data)
+    if data['channel'] == 'subscriptionResponse' or data['channel'] == 'pong':
+        cprint(f"Funding log: {data}", "magenta", "on_white")
+        return
+
+    fundings = data['data']['fundings']
+    # if data['data']['isSnapshot']:
+    #     for funding in fundings:
+    #         fundingsDeque.append(funding)
+    # else:
+    fundingsDeque.append(fundings[-1])
     
+    cprint(f"Fundings: {fundings[-1]}", 'light_yellow', 'on_magenta')
     basis(fundingsDeque, basisDeque)
 
 
 
 
 def hft():
+    cprint("HFT Taking Trade", 'light_cyan', 'on_dark_grey')
     global globalHyperClass, globalCoin, globalToken
-
+    
     bids = calcPrice(newBidDeque.pop(), True)
     asks = calcPrice(newAskDeque.pop(), False)
 
+    cprint(f"My Bids:{bids}", 'light_green', 'on_blue')
+    cprint(f"My Asks: {asks}", 'light_green', 'on_blue')
     positions = spotPositions(globalHyperClass)
 
     coins = 0
@@ -146,20 +185,18 @@ def hft():
 
     for position in positions:
         if position['coin'] == 'USDC':
-            stables = float(position['total'])
+            stables = Decimal(position['total'])
         elif position['coin'] == globalToken['name']:
-            coins = float(position['total'])
+            coins = Decimal(position['total'])
 
+    cprint(f"Coins: {coins}", "light_cyan", "on_dark_grey")
+    cprint(f"Stables: {stables}", "light_cyan", "on_dark_grey")
     #measured in dollars
     stableSz = roundSize(calcSizeList(stables / newMidDeque[-1], newMidDeque[-1]), szTick)
     coinSz = roundSize(calcSizeList(coins, newMidDeque[-1]), szTick)
-    
 
-    # cprint(f"Stables: {stableSz}", 'light_green', 'on_blue')
-    # cprint(f"Coins: {coinSz}", 'light_green', 'on_blue')
-
-    # cprint(f"Last Mid: {mid}", 'light_green', 'on_blue')
-    # cprint(f"Last Spread: {spread}", 'light_green', 'on_blue')
+    cprint(f"Stables Size List: {stableSz}", 'light_green', 'on_blue')
+    cprint(f"Coins Size List: {coinSz}", 'light_green', 'on_blue')
 
     cancelOrders(globalHyperClass, globalCoin)
     multiSpotOrders(globalHyperClass, globalCoin, stableSz, coinSz, bids, asks)
@@ -167,17 +204,33 @@ def hft():
 
 
 
-def hft_thread(hyperClass, coin, token):
+def hft_thread(hyperClass, coin, token, wsUrl):
     global globalHyperClass, globalCoin, globalToken
     globalHyperClass = hyperClass
     globalCoin = coin
     globalToken = token
-    threading.Thread(target = hyperClass.info.subscribe, args = ({"type": "l2Book","coin": coin}, l2BookSubCallback)).start()
-    threading.Thread(target = hyperClass.info.subscribe, args = ({"type": "userFills","user": hyperClass.makerAddress}, fillsSubCallback)).start()
-    threading.Thread(target = hyperClass.info.subscribe, args = ({"type": "orderUpdates","user": hyperClass.makerAddress}, ordersSubCallback)).start()
-    threading.Thread(target = hyperClass.info.subscribe, args = ({"type": "userFundings","user": hyperClass.hedgeAddress}, fundingSubCallback)).start()
-    cprint("HFT Thread Started", 'light_green', 'on_blue')
-    # threading.Thread(target = hyperClass.info.subscribe, args = ({'type': 'trade', 'coin': coin}, tradeSubCallback)).start()
+    l2BookThread = threading.Thread(target = subl2Book, args = ({"type": "l2Book","coin": coin}, l2BookSubCallback, wsUrl))
+    fillsThread = threading.Thread(target = subFills, args = ({"type": "userFills","user": hyperClass.makerAddress}, fillsSubCallback, wsUrl))
+    ordersThread = threading.Thread(target = subOrders, args = ({"type": "orderUpdates","user": hyperClass.makerAddress}, ordersSubCallback, wsUrl))
+    fundingsThread = threading.Thread(target = subFundings, args = ({"type": "userFundings","user": hyperClass.hedgeAddress}, fundingSubCallback, wsUrl))
+    # tradeThread = threading.Thread(target = hyperClass.info.subscribe, args = ({'type': 'trade', 'coin': coin}, tradeSubCallback, wsUrl))
+
+    cprint("HFT Thread Started", 'light_cyan', 'on_dark_grey')
+
+    l2BookThread.start()
+    fillsThread.start()
+    ordersThread.start()
+    fundingsThread.start()
+    # tradeThread.start()
+
+
+    print("L2 Book Thread status: ", l2BookThread.is_alive())
+    print("Fills Thread status: ", fillsThread.is_alive())
+    print("Orders Thread status: ", ordersThread.is_alive())
+    print("Fundings Thread status: ", fundingsThread.is_alive())
+
+
+    
 
 
 

@@ -8,10 +8,10 @@ from hft import hft_thread
     
 
 def main():
-    hyperClass = defaults.HyperMarketMakerDefaults(url)
+    hyperClass = defaults.HyperMarketMakerDefaults(url, prod = True)
     tokensInfo = tokens.TokenInfo(hyperClass.info)
     token = tokensInfo.getToken(coinShort)
-    hft_thread(hyperClass, coin, token)
+    hft_thread(hyperClass, coin, token, wsUrl)
 
     # tradeSub(hyperClass, coin)
 main()
