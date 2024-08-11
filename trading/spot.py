@@ -1,6 +1,6 @@
 from termcolor import cprint
 from decimal import Decimal
-import re
+import re, time
 
 
 #Print out spot account balances info if any
@@ -93,7 +93,6 @@ def multiSpotOrders(hyperClass, coin, stableSz, coinSz, bids, asks):
     cprint(f"Placing Orders: {orders}", 'light_yellow', 'on_magenta')
     # Place multiple orders
     orderResult = hyperClass.exchange.bulk_orders(orders)
-    print(orderResult)
     if orderResult["status"] == "ok":
         statuses = orderResult["response"]["data"]["statuses"]
         # for status in statuses:
@@ -112,7 +111,19 @@ def multiSpotOrders(hyperClass, coin, stableSz, coinSz, bids, asks):
         # if we get a post only order would have immediately matched we can cancel all orders and let the subscriptions retry
 
         cprint(f"Order Status: {statuses}",'light_yellow', 'on_magenta')
+    elif orderResult["status"] == 'err':
+        errorMsg = orderResult["response"]
+        if errorMsg.startswith("Too many cumulative requests sent"):
+            cprint("Too many requests, submitting Taker order", 'white', 'on_red')
+            time.sleep(10)
+            if stableSz > coinSz:
+                marketOrderResult = hyperClass.exchange.market_open(coin, True, float(sum(stableSz)))
+                cprint(f"Market Order Status: {marketOrderResult}", 'light_yellow', 'on_magenta')
+            else:
+                marketOrderResult = hyperClass.exchange.market_open(coin, False, float(sum(coinSz)))
+                cprint(f"Market Order Status: {marketOrderResult}", 'light_yellow', 'on_magenta')
+
     else:
-        cprint("Order not submitted: {order_result}", 'white', 'on_red')
+        cprint(f"Order not submitted: {orderResult}", 'white', 'on_red')
     
     

@@ -1,7 +1,8 @@
-from tools.config import url, coin, wsUrl, testUrl, wsTestUrl, coinShort, hedge
+from tools.config import url, wsUrl, testUrl, wsTestUrl
 from models import tokens, defaults
 from data.trades import tradeSub
 from hft import hft_thread
+from tools.config import coin
 
 
 
@@ -10,8 +11,8 @@ from hft import hft_thread
 def main():
     hyperClass = defaults.HyperMarketMakerDefaults(url, prod = True)
     tokensInfo = tokens.TokenInfo(hyperClass.info)
-    token = tokensInfo.getToken(coinShort)
-    hft_thread(hyperClass, coin, token, hedge, wsUrl)
+    token = tokensInfo.getToken()
+    hft_thread(hyperClass, token)
 
     # tradeSub(hyperClass, coin)
 main()

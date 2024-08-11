@@ -28,7 +28,7 @@ def setup(url, prod):
     exchange = Exchange(account, url, vault_address=makerAddress)
 
 
-    # Set address to the api address if no wallet is provided
+    # Set address to the api address if no mak is provided
     if accAddress == "":
         address = account.address
 

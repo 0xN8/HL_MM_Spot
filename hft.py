@@ -2,10 +2,11 @@ from trading.spot import multiSpotOrders, spotPositions, cancelOrders
 from compute.stats import roundSigFigs
 from compute.spread import calcQuote, calcSizeList, roundSize, skew, basis, calcMid, calcPrice
 from models.deques import orderInit, fillInit
-from tools.api import subFills, subOrders, subl2Book, subFundings, subCandles
+from tools.api import subscribe, heartbeatSub
 from strategies.features.trend import trend, getTrendFlag
+from tools.config import coin, wsUrl
 from termcolor import cprint
-import threading, collections, json
+import threading, collections, json, time
 from decimal import Decimal, ROUND_HALF_UP
 
 
@@ -44,9 +45,10 @@ def l2BookSubCallback(ws, data):
     
     bid = Decimal(data['data']['levels'][0][0]['px'])
     ask = Decimal(data['data']['levels'][1][0]['px'])
-    spread = ask - bid
+    spread = ask - bid 
     mid = roundSigFigs(Decimal(spread/2) + bid, 5)
-    makerDesProfit = 0
+    makerDesProfit = Decimal(0)
+    makerFee = Decimal(.0001)
 
 
     if bidDeque and askDeque:
@@ -67,17 +69,17 @@ def l2BookSubCallback(ws, data):
     #this new spread takes the basis % and if basis is positive I am getting paid to hedge
     #(decrease spread --> more fills)
     #makerDesProfit is a % that I determine to increase or decrease spread width
-    newSpreadDeque.append(spread*basisDeque[-1]*-1 + spread + makerDesProfit*spread)
+    newSpreadDeque.append(spread*basisDeque[-1]*-1 + spread + makerDesProfit*spread + mid*makerFee)
 
     if len(midDeque) > 1 and midDeque[-1] != midDeque[-2]:
         calcMid(midDeque, newMidDeque)
-        calcQuote(newBidDeque, newAskDeque, newMidDeque, avgHalfSpreadPct = (newSpreadDeque[-1]/2)/midDeque[-1])
+        calcQuote(newBidDeque, newAskDeque, newMidDeque, avgHalfSpreadPct = (Decimal(newSpreadDeque[-1]/2))/midDeque[-1])
         print("New Mid Calculated, calling HFT")
         hft()
     
     elif len(spreadDeque) > 1 and spreadDeque[-1] != spreadDeque[-2]:
-        calcQuote(newBidDeque, newAskDeque, newMidDeque, avgHalfSpreadPct = (newSpreadDeque[-1]/2)/midDeque[-1])
-        print("New Quote Calculated, calling HFT")
+        calcQuote(newBidDeque, newAskDeque, newMidDeque, avgHalfSpreadPct = (Decimal(newSpreadDeque[-1]/2))/midDeque[-1])
+        print("New Spread Calculated, calling HFT")
         hft()
         
 
@@ -87,9 +89,11 @@ def fillsSubCallback(ws, data):
     data = json.loads(data)
     if data['channel'] == 'subscriptionResponse':
         return
-    
-    fills = data['data']['fills']
+
     if data['data'].get('isSnapshot') == None:
+
+
+        fills = data['data']['fills']
         for fill in fills:
             if fill['oid'] in orderAskDeque:
                 orderAskDeque.remove(fills['oid'])
@@ -151,15 +155,15 @@ def ordersSubCallback(ws, data):
 def fundingSubCallback(ws, data):
     # cprint(f"Funding Callback {data}", 'light_cyan', 'on_dark_grey')
     data = json.loads(data)
+    
     if data['channel'] == 'subscriptionResponse' or data['channel'] == 'pong':
         cprint(f"Funding log: {data}", "magenta", "on_white")
         return
+    
+    if data['data'].get('isSnapshot') == True:
+        return
 
     fundings = data['data']['fundings']
-    # if data['data']['isSnapshot']:
-    #     for funding in fundings:
-    #         fundingsDeque.append(funding)
-    # else:
     fundingsDeque.append(fundings[-1])
     
     cprint(f"Fundings: {fundings[-1]}", 'light_yellow', 'on_magenta')
@@ -171,8 +175,12 @@ def fundingSubCallback(ws, data):
 def hft():
     while getTrendFlag():
         cprint("HFT Taking Trade", 'light_cyan', 'on_dark_grey')
-        global globalHyperClass, globalCoin, globalToken
-        
+        global globalHyperClass, coin, globalToken
+    
+
+        if len(newBidDeque) == 0 or len(newAskDeque) == 0:
+            return
+
         bids = calcPrice(newBidDeque.pop(), True)
         asks = calcPrice(newAskDeque.pop(), False)
 
@@ -200,24 +208,25 @@ def hft():
         cprint(f"Stables Size List: {stableSz}", 'light_green', 'on_blue')
         cprint(f"Coins Size List: {coinSz}", 'light_green', 'on_blue')
 
-        cancelOrders(globalHyperClass, globalCoin)
-        multiSpotOrders(globalHyperClass, globalCoin, stableSz, coinSz, bids, asks)
+        cancelOrders(globalHyperClass, coin)
+        multiSpotOrders(globalHyperClass, coin, stableSz, coinSz, bids, asks)
+        time.sleep(5)
 
 
 
 
-def hft_thread(hyperClass, coin, token, hedge, wsUrl):
-    global globalHyperClass, globalCoin, globalToken
+def hft_thread(hyperClass, token):
+    global globalHyperClass, globalToken
     globalHyperClass = hyperClass
-    globalCoin = coin
     globalToken = token
-    l2BookThread = threading.Thread(target = subl2Book, args = ({"type": "l2Book","coin": coin}, l2BookSubCallback, wsUrl))
-    fillsThread = threading.Thread(target = subFills, args = ({"type": "userFills","user": hyperClass.makerAddress}, fillsSubCallback, wsUrl))
-    ordersThread = threading.Thread(target = subOrders, args = ({"type": "orderUpdates","user": hyperClass.makerAddress}, ordersSubCallback, wsUrl))
-    fundingsThread = threading.Thread(target = subFundings, args = ({"type": "userFundings","user": hyperClass.hedgeAddress}, fundingSubCallback, wsUrl))
+
+
+    l2BookThread = threading.Thread(target = subscribe, args = ({"type": "l2Book","coin": coin}, l2BookSubCallback, wsUrl))
+    fillsThread = threading.Thread(target = subscribe, args = ({"type": "userFills","user": hyperClass.makerAddress}, fillsSubCallback, wsUrl))
+    ordersThread = threading.Thread(target = subscribe, args = ({"type": "orderUpdates","user": hyperClass.makerAddress}, ordersSubCallback, wsUrl))
+    fundingsThread = threading.Thread(target = heartbeatSub, args = ({"type": "userFundings","user": hyperClass.hedgeAddress}, fundingSubCallback, wsUrl))
     # tradeThread = threading.Thread(target = hyperClass.info.subscribe, args = ({'type': 'trade', 'coin': coin}, tradeSubCallback, wsUrl))
 
-    threads = [l2BookThread, fillsThread, ordersThread, fundingsThread]
     cprint("HFT Thread Started", 'light_cyan', 'on_dark_grey')
 
     l2BookThread.start()
@@ -225,8 +234,7 @@ def hft_thread(hyperClass, coin, token, hedge, wsUrl):
     ordersThread.start()
     fundingsThread.start()
     # tradeThread.start()
-
-    trend(subCandles, hedge, wsUrl, threads)
+    trend()
 
 
     print("L2 Book Thread status: ", l2BookThread.is_alive())

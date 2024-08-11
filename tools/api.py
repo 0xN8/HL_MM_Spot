@@ -34,21 +34,7 @@ def send_ping(ws):
 
 
 
-
-def subFills(args, callback, url):
-
-    msg = {
-        "method": "subscribe",
-        "subscription": args
-    }
-
-    ws = websocket.WebSocketApp(url, on_message = callback, on_error = on_error, on_close = on_close)
-    ws.on_open = lambda ws: on_open(ws, msg)
-    ws.run_forever()
-
-
-
-def subOrders(args, callback, url):
+def subscribe(args, callback, url):
 
     msg = {
         "method": "subscribe",
@@ -59,21 +45,9 @@ def subOrders(args, callback, url):
     ws.on_open = lambda ws: on_open(ws, msg)
     ws.run_forever()
 
-
-
-
-def subl2Book(args, callback, url):
-    msg = {
-        "method": "subscribe",
-        "subscription": args
-    }
-
-    ws = websocket.WebSocketApp(url, on_message = callback, on_error = on_error, on_close = on_close)
-    ws.on_open = lambda ws: on_open(ws, msg)
-    ws.run_forever() 
 
     
-def subFundings (args, callback, url):
+def heartbeatSub(args, callback, url):
     msg = {
         "method": "subscribe",
         "subscription": args
@@ -85,16 +59,5 @@ def subFundings (args, callback, url):
     heartbeat.start()
     ws.run_forever()
 
-
-
-def subCandles(args, callback, url):
-    msg = {
-        "method": "subscribe",
-        "subscription": args
-    }
-
-    ws = websocket.WebSocketApp(url, on_message = callback, on_error = on_error, on_close = on_close)
-    ws.on_open = lambda ws: on_open(ws, msg)
-    ws.run_forever()
 
 

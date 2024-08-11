@@ -9,7 +9,7 @@ def roundSigFigs(value, figures):
         return 0
     else:
         # Determine the scale of the number
-        scale = int(math.floor(math.log10(abs(value))))
+        scale = Decimal(math.floor(math.log10(abs(value))))
         # Adjust the scale of the number
         scaled_value = value / Decimal(10 ** scale)
         # Round the scaled number

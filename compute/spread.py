@@ -14,7 +14,10 @@ skewDeque = collections.deque([0], maxlen=200)
 #that means I am getting paid to hedge. If I am getting paid
 #I want to decrease my spread to get more fills
 def basis(fundingsDeque, basisDeque):
-    fRate = 0 # Decimal(fundingsDeque[-1]['fundingRate'])
+    if len(fundingsDeque) > 0:
+        fRate = Decimal(fundingsDeque[-1]['fundingRate'])
+    else:
+        fRate = 0
     newBasis = Decimal(1/(1 + fRate * -1)-1)
 
     basisDeque.append(newBasis)
@@ -23,6 +26,7 @@ def basis(fundingsDeque, basisDeque):
 
 
 def skew(fills, orderBidDeque, orderAskDeque, wtAvgHalfSpreadPct):
+    cprint("Calculating Skew", 'light_cyan', 'on_dark_grey')
     totalSzQuote = 0
     deltaPos = 0
     bidSz = 0
@@ -57,7 +61,7 @@ def skew(fills, orderBidDeque, orderAskDeque, wtAvgHalfSpreadPct):
 
         newSkew = (deltaPos/totalSzQuote) * wtAvgHalfSpreadPct * -1
         skewDeque.append(newSkew)
-        cprint("Skew: " + str(newSkew), 'light_green', 'on_blue')
+        cprint(f"New Skew Calculated: {newSkew}", 'light_green', 'on_blue')
     else:
         cprint("Total Sz Quote is 0", 'white', 'on_red')
 
@@ -65,8 +69,7 @@ def skew(fills, orderBidDeque, orderAskDeque, wtAvgHalfSpreadPct):
 def calcMid (midDeque, newMidDeque):
     mid = midDeque[-1]
     skew = skewDeque[-1]
-    makerFee = Decimal(.0001)
-    newMid = roundSigFigs(mid * (1 + skew) * (1 - makerFee), 5)
+    newMid = roundSigFigs(mid * (1 + skew), 5)
     newMidDeque.append(newMid)
     cprint("Fair Price: " + str(newMid), 'light_green', 'on_blue')
 
@@ -85,15 +88,16 @@ def calcQuote(newBidDeque, newAskDeque, newMidDeque, avgHalfSpreadPct):
 
 def calcPrice(maker, buy):
     increment = Decimal(1)/Decimal(10**pxTick) #1 unit of the last decimal place
-    print("Increment: ", increment)
 
-    print("Maker1: ", maker)
-    if buy:
-        print("Maker2: ", maker - increment)
-        print("Maker3: ", maker - 2*increment)
-    else: 
-        print("Maker2: ", maker + increment)
-        print("Maker3: ", maker + 2*increment)
+    # print("Increment: ", increment)
+
+    # print("Maker1: ", maker)
+    # if buy:
+    #     print("Maker2: ", maker - increment)
+    #     print("Maker3: ", maker - 2*increment)
+    # else: 
+    #     print("Maker2: ", maker + increment)
+    #     print("Maker3: ", maker + 2*increment)
 
     if buy:
         return [maker, maker - increment, maker - 2*increment]
