@@ -1,13 +1,17 @@
-from trading.spot import multiSpotOrders, spotPositions, cancelOrders
-from compute.stats import roundSigFigs
-from compute.spread import calcQuote, calcSizeList, roundSize, skew, basis, calcMid, calcPrice
-from models.deques import orderInit, fillInit
-from tools.api import subscribe, heartbeatSub
-from strategies.features.trend import trend, getTrendFlag
 from tools.config import coin, wsUrl
+from models.deques import orderInit, fillInit
+
+from tools.api import subscribe, heartbeatSub
+from trading.spot import multiSpotOrders, spotPositions, cancelOrders
+
+from strategies.features.trend import trend, getTrendFlag
+from compute.spread import calcQuote, calcSizeList, roundSize, skew, basis, calcMid, calcPrice
+from data.test import avgBookTime
+
+from decimal import Decimal
 from termcolor import cprint
 import threading, collections, json, time
-from decimal import Decimal, ROUND_HALF_UP
+
 
 
 #This is current/historic book data deque's
@@ -22,6 +26,7 @@ fillsAskDeque = collections.deque(fillInit, maxlen=200)
 fillsBidDeque = collections.deque(fillInit, maxlen=200)
 orderAskDeque = collections.deque(orderInit,maxlen=200)
 orderBidDeque = collections.deque(orderInit,maxlen=200)
+bookTime = collections.deque(maxlen=200)
 
 
 fundingsDeque = collections.deque(maxlen=200)
@@ -38,49 +43,62 @@ newSpreadDeque = collections.deque(maxlen=1)
 #if the spread is different we need to requote around our old fair value
 #hence if bid or ask is different we have either a new mid or a new spread
 def l2BookSubCallback(ws, data):
-    # cprint(f"L2Book Callback {data}", 'light_cyan', 'on_dark_grey')
+    cprint(f"L2Book Callback data", 'light_cyan', 'on_dark_grey')
     data = json.loads(data)
     if data['channel'] == 'subscriptionResponse':
         return
+
+    t = data['data']['time']
     
-    bid = Decimal(data['data']['levels'][0][0]['px'])
-    ask = Decimal(data['data']['levels'][1][0]['px'])
-    spread = ask - bid 
-    mid = roundSigFigs(Decimal(spread/2) + bid, 5)
-    makerDesProfit = Decimal(0)
-    makerFee = Decimal(.0001)
+    bookTime.append({
+        "time": t,
+        "currTime": (time.time() * 1000)
+        })
 
-
-    if bidDeque and askDeque:
-        if bid == bidDeque[-1] and ask == askDeque[-1]:
-            print("No New Best Bid and Ask")
-            return
+    if len(bookTime) > 100:
+        print(f"Book Time Deque: {bookTime}")
+        avgBookTime(bookTime)
     
-    if not newMidDeque:
-        newMidDeque.append(mid)
+    # bid = Decimal(data['data']['levels'][0][0]['px'])
+    # ask = Decimal(data['data']['levels'][1][0]['px'])
+    # spread = ask - bid
+    # print(f"New Bid: {bid}")
+    # print(f"New Ask: {ask}")
+    # mid = roundSigFigs(Decimal(spread/2) + bid, 5)
+    # makerDesProfit = Decimal(0)
+    # makerFee = Decimal(.0001)
 
-    bidDeque.append(bid)
-    askDeque.append(ask)
-    midDeque.append(mid)
-    spreadDeque.append(spread)
-    cprint(f'Market Mid & Spread: {mid}, {spread}', 'light_cyan', 'on_dark_grey')
 
-
-    #this new spread takes the basis % and if basis is positive I am getting paid to hedge
-    #(decrease spread --> more fills)
-    #makerDesProfit is a % that I determine to increase or decrease spread width
-    newSpreadDeque.append(spread*basisDeque[-1]*-1 + spread + makerDesProfit*spread + mid*makerFee)
-
-    if len(midDeque) > 1 and midDeque[-1] != midDeque[-2]:
-        calcMid(midDeque, newMidDeque)
-        calcQuote(newBidDeque, newAskDeque, newMidDeque, avgHalfSpreadPct = (Decimal(newSpreadDeque[-1]/2))/midDeque[-1])
-        print("New Mid Calculated, calling HFT")
-        hft()
+    # if bidDeque and askDeque:
+    #     if bid == bidDeque[-1] and ask == askDeque[-1]:
+    #         print("No New Best Bid and Ask")
+    #         return
     
-    elif len(spreadDeque) > 1 and spreadDeque[-1] != spreadDeque[-2]:
-        calcQuote(newBidDeque, newAskDeque, newMidDeque, avgHalfSpreadPct = (Decimal(newSpreadDeque[-1]/2))/midDeque[-1])
-        print("New Spread Calculated, calling HFT")
-        hft()
+    # if not newMidDeque:
+    #     newMidDeque.append(mid)
+
+    # bidDeque.append(bid)
+    # askDeque.append(ask)
+    # midDeque.append(mid)
+    # spreadDeque.append(spread)
+    # cprint(f'Market Mid & Spread: {mid}, {spread}', 'light_cyan', 'on_dark_grey')
+
+
+    # #this new spread takes the basis % and if basis is positive I am getting paid to hedge
+    # #(decrease spread --> more fills)
+    # #makerDesProfit is a % that I determine to increase or decrease spread width
+    # newSpreadDeque.append(spread*basisDeque[-1]*-1 + spread + makerDesProfit*spread + mid*makerFee)
+
+    # if len(midDeque) > 1 and midDeque[-1] != midDeque[-2]:
+    #     calcMid(midDeque, newMidDeque)
+    #     calcQuote(newBidDeque, newAskDeque, newMidDeque, avgHalfSpreadPct = (Decimal(newSpreadDeque[-1]/2))/midDeque[-1])
+    #     print("New Mid Calculated, calling HFT")
+    #     hft()
+    
+    # elif len(spreadDeque) > 1 and spreadDeque[-1] != spreadDeque[-2]:
+    #     calcQuote(newBidDeque, newAskDeque, newMidDeque, avgHalfSpreadPct = (Decimal(newSpreadDeque[-1]/2))/midDeque[-1])
+    #     print("New Spread Calculated, calling HFT")
+    #     hft()
         
 
 #change in position size
@@ -186,6 +204,7 @@ def hft():
 
         cprint(f"My Bids:{bids}", 'light_green', 'on_blue')
         cprint(f"My Asks: {asks}", 'light_green', 'on_blue')
+        #todo: change positions to ws or place in hft_threads
         positions = spotPositions(globalHyperClass)
 
         coins = 0
@@ -222,25 +241,25 @@ def hft_thread(hyperClass, token):
 
 
     l2BookThread = threading.Thread(target = subscribe, args = ({"type": "l2Book","coin": coin}, l2BookSubCallback, wsUrl))
-    fillsThread = threading.Thread(target = subscribe, args = ({"type": "userFills","user": hyperClass.makerAddress}, fillsSubCallback, wsUrl))
-    ordersThread = threading.Thread(target = subscribe, args = ({"type": "orderUpdates","user": hyperClass.makerAddress}, ordersSubCallback, wsUrl))
-    fundingsThread = threading.Thread(target = heartbeatSub, args = ({"type": "userFundings","user": hyperClass.hedgeAddress}, fundingSubCallback, wsUrl))
+    # fillsThread = threading.Thread(target = subscribe, args = ({"type": "userFills","user": hyperClass.makerAddress}, fillsSubCallback, wsUrl))
+    # ordersThread = threading.Thread(target = subscribe, args = ({"type": "orderUpdates","user": hyperClass.makerAddress}, ordersSubCallback, wsUrl))
+    # fundingsThread = threading.Thread(target = heartbeatSub, args = ({"type": "userFundings","user": hyperClass.hedgeAddress}, fundingSubCallback, wsUrl))
     # tradeThread = threading.Thread(target = hyperClass.info.subscribe, args = ({'type': 'trade', 'coin': coin}, tradeSubCallback, wsUrl))
 
     cprint("HFT Thread Started", 'light_cyan', 'on_dark_grey')
 
     l2BookThread.start()
-    fillsThread.start()
-    ordersThread.start()
-    fundingsThread.start()
+    # fillsThread.start()
+    # ordersThread.start()
+    # fundingsThread.start()
     # tradeThread.start()
-    trend()
+    # trend()
 
 
     print("L2 Book Thread status: ", l2BookThread.is_alive())
-    print("Fills Thread status: ", fillsThread.is_alive())
-    print("Orders Thread status: ", ordersThread.is_alive())
-    print("Fundings Thread status: ", fundingsThread.is_alive())
+    # print("Fills Thread status: ", fillsThread.is_alive())
+    # print("Orders Thread status: ", ordersThread.is_alive())
+    # print("Fundings Thread status: ", fundingsThread.is_alive())
 
 
     

@@ -1,13 +1,11 @@
-from tools.config import url, wsUrl, testUrl, wsTestUrl
+from tools.config import url, wsUrl, testUrl, wsTestUrl, coin
 from models import tokens, defaults
 from data.trades import tradeSub
 from hft import hft_thread
-from tools.config import coin
-
 
 
     
-
+#todo: import coin directly into tradeSub
 def main():
     hyperClass = defaults.HyperMarketMakerDefaults(url, prod = True)
     tokensInfo = tokens.TokenInfo(hyperClass.info)

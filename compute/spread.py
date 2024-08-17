@@ -24,7 +24,7 @@ def basis(fundingsDeque, basisDeque):
     cprint("Basis: " + str(newBasis), 'light_green', 'on_blue')
 
 
-
+#todo: changes from fills to fillsAskDeque & fillsBidDeque
 def skew(fills, orderBidDeque, orderAskDeque, wtAvgHalfSpreadPct):
     cprint("Calculating Skew", 'light_cyan', 'on_dark_grey')
     totalSzQuote = 0
